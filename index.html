@@ -1,0 +1,108 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="chrome=1">
+    <title>osx-overhaul by bensemmler</title>
+
+    <link rel="stylesheet" href="stylesheets/styles.css">
+    <link rel="stylesheet" href="stylesheets/github-light.css">
+    <meta name="viewport" content="width=device-width">
+    <!--[if lt IE 9]>
+    <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+  </head>
+  <body>
+    <div class="wrapper">
+      <header>
+        <h1>osx-overhaul</h1>
+        <p>Making the OS X port great again.</p>
+
+        <p class="view"><a href="https://github.com/bensemmler/angband">View the Project on GitHub <small>bensemmler/angband</small></a></p>
+
+
+        <ul>
+          <li><a href="https://github.com/bensemmler/angband/zipball/master">Download <strong>ZIP File</strong></a></li>
+          <li><a href="https://github.com/bensemmler/angband/tarball/master">Download <strong>TAR Ball</strong></a></li>
+          <li><a href="https://github.com/bensemmler/angband">View On <strong>GitHub</strong></a></li>
+        </ul>
+      </header>
+      <section>
+        <p>(16 April 2016)</p>
+
+<h2>
+<a id="caveats" class="anchor" href="#caveats" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Caveats</h2>
+
+<ul>
+<li>This branch is known to build using Xcode 7.2 on OS X 10.11.1 and Xcode 7.3 on OS X 10.11.4. <code>make</code> also built properly using with those platforms. Older tools and systems have not been tested.</li>
+<li>The game also seems to run properly on both of those system versions.</li>
+<li>I have not done any play testing with this version, but some of the bits and pieces that have gone into it have been in custom versions I've played with in the past.</li>
+</ul>
+
+<h2>
+<a id="known-issues" class="anchor" href="#known-issues" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Known Issues</h2>
+
+<ul>
+<li>Window resizing is completely broken, as is full screen. These aren't hard for me to fix and will tie into some other stuff I'll be adding.</li>
+<li>The automatic window visibility stuff (when changing sub term flags) might be a bit wonky.</li>
+<li>Some fonts at certain sizes can leave pixels behind when redrawing (Menlo 13, the default font, shows this). This will get fixed when I clean up character drawing a bit more.</li>
+<li>Default window positions on a new install are all over the place. This will be restored as well.</li>
+</ul>
+
+<h2>
+<a id="changes" class="anchor" href="#changes" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Changes</h2>
+
+<p>This branch is a relatively clean, consolidated bit of work that I did a few years ago. I never got around to finishing it, partly because I had lots of different features in different branches of different repos. With these changes, I can actually start implementing some of the other features properly. I'll be updating this list as I go, since there may be things that I've forgotten.</p>
+
+<h3>
+<a id="architecturecode" class="anchor" href="#architecturecode" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Architecture/Code</h3>
+
+<ul>
+<li>The monolithic <code>main-cocoa.m</code> is now broken up into sensible classes classes. Each class should behave more like Cocoa developers would expect, without some of the weird stuff the old code was doing.</li>
+<li>
+<code>main-cocoa.m</code> is mostly just glue code to help isolate the Cocoa stuff and the Angband stuff. This separation isn't entirely complete yet.</li>
+<li>Classes are being designed to be more flexible, so that behavior can be more varied. This isn't used much now, but will be in the future.</li>
+<li>Some more modern features of Objective-C are being used to start forward compatibility. Some of these features support better integration with Swift. This is protection in case Apple decides to push Swift even harder on the platforms, which may make it harder to build on future versions. I've tried to macro out anything that might break older tools, but I can't test those.</li>
+<li>In trying to make the code more future-proof, I've tried hard to make sure that everything will still work with 10.5. Cleaning up a lot of the code should make it easier to support in both directions.</li>
+<li>Where possible, things are being moved to cross-Cocoa-platform APIs. I'm still thinking about trying to get the game working on iOS (and maybe on tvOS on a lark).</li>
+<li>I'm shooting to make things simpler for variant maintainers to be able to port to OS X properly; there are a lot of variants I can't play because they're Carbon-only or PPC-only or they're Windows-only (I'm too lazy to boot into Windows) or they're X or curses (again, too lazy). I need to find out more about some of the variants based on older term code so that I can possibly integrate those hooks as well.</li>
+<li>Garbage collection has been removed. It was deprecated a few years ago.</li>
+</ul>
+
+<h3>
+<a id="app-and-ui-stuff" class="anchor" href="#app-and-ui-stuff" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>App and UI Stuff</h3>
+
+<ul>
+<li>File &gt; Open Recent: keeps track of recently opened files and can open them when on the splash screen.</li>
+<li>File &gt; Close menu (for windows) is added.</li>
+<li>Graphics menu is cleaned up.</li>
+<li>Animation/FPS menu is gone.</li>
+<li>The Command menu can be customized with additional menu items by creating a plist and adding it to the Application Support directory. This needs to be documented.</li>
+<li>Help menu has a few new things. Cmd-? will display in-game help when possible. Menu items were added that will open rephial.org and oook. These need to be made customizable so that variants can do their own thing.</li>
+<li>Modern file association has been implemented properly so that files should open in the correct app. There may be some weirdness due to file metadata being incorrect, but in the long term, this should resolve some issues. Double clicking a save game should properly start that game (if Angband is not launched or if it is on the splash screen).</li>
+<li>The way the game interacts with the Cocoa event loop has been cleaned up significantly. While this shouldn't be noticed by players, it makes the app work more nicely with the system.</li>
+<li>Preparations for localization of the app are being made. This will at least make the chrome look more natural on a non-English speaker's machine.</li>
+</ul>
+
+<h3>
+<a id="drawing" class="anchor" href="#drawing" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Drawing</h3>
+
+<ul>
+<li>All of the drawing code has been moved to Core Graphics, both for portability and simplicity.</li>
+<li>Drawing happens at native scale; this means that there are no workarounds necessary to support high DPI displays.</li>
+<li>Forced drawing doesn't happen anymore. This is better for the system, since drawing only happens when it needs to and when it is best for the system.</li>
+<li>The double-drawing/blitting has been removed. I'm not really sure why it was implemented that way to begin with; it wasn't really necessary.</li>
+<li>General drawing should be faster and more efficient. This is from removing the image drawing (the previous item), drawing only the parts of the view that have changed (as helpfully provided by <code>ui-term</code>), and reducing the number of unnecessary operations.</li>
+<li>Graphics tile drawing seems to be about 5 times faster in the average case for drawing one tile.</li>
+<li>In the main term, a consistent, pixel-rounded grid is enforced. This fixes a drawing thing that drove me nuts: in a given row of tiles, after every few there would be extra space. This was most visible in town when drawing was not done at Retina-scale. It's only done in the main term since the sub terms tend to be prose; the inconsistency helps readability. I've got some ideas of how I can keep the grid but also improve readability in the main term.</li>
+</ul>
+      </section>
+      <footer>
+        <p>This project is maintained by <a href="https://github.com/bensemmler">bensemmler</a></p>
+        <p><small>Hosted on GitHub Pages &mdash; Theme by <a href="https://github.com/orderedlist">orderedlist</a></small></p>
+      </footer>
+    </div>
+    <script src="javascripts/scale.fix.js"></script>
+    
+  </body>
+</html>
