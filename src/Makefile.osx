@@ -10,8 +10,10 @@ CC = clang
 LD = ld
 OPT ?= -O2
 
-# for consistency with older versions, use a lower case bundle ID
-BUNDLE_IDENTIFIER = org.rephial.angband
+# The earliest version of OS X that we can run on. The value should be a value
+# that can be passed to the MACOSX_DEPLOYMENT_TARGET environment variable during
+# build. This value is also used in the processed Info.plist.
+OSX_MINIMUM_VERSION = 10.5
 
 ARCH = -arch i386 -arch x86_64
 WARNINGS = -W -Wall -Wno-unused-parameter -Wno-missing-field-initializers \
@@ -24,7 +26,7 @@ LIBS = -framework Cocoa
 # Fix for bug #1663: Set the deployment target via environment variable
 # for the final link command. See http://grauonline.de/wordpress/?p=71
 # or http://stackoverflow.com/questions/5509885/creating-app-for-old-mac-from-new-mac-machine
-DEPLOYMENT_TARGET = MACOSX_DEPLOYMENT_TARGET=10.5
+DEPLOYMENT_TARGET = MACOSX_DEPLOYMENT_TARGET=$(OSX_MINIMUM_VERSION)
 
 # Import user prefs
 # If you don't want to edit this file, put your module redefinitions
@@ -44,16 +46,21 @@ APPNAME = $(NAME).app
 EXE = $(PROGNAME)
 
 VERSION := $(shell ../scripts/version.sh)
-ifeq (${VERSION},)
+ifneq (${VERSION},)
 	BUNDLE_VERSION := ${VERSION}
 	CFLAGS += -DBUILD_ID=${VERSION}
 endif
 
 
 OBJS = $(BASEOBJS)
-OSX_OBJS = main-cocoa.o
-
-
+OSX_OBJS = main-cocoa.o \
+	AngbandApplicationDelegate.o \
+	AngbandDefaultTermView.o \
+	AngbandTermConfiguration.o \
+	AngbandTermWindow.o \
+	AngbandTileset.o \
+	NSColor+AngbandTermColor.o \
+	NSFont+AngbandFont.o
 
 #
 # Build the "Angband" program
@@ -77,7 +84,7 @@ $(EXE): $(EXE).o $(OSX_OBJS)
 #
 
 clean:
-	-rm -f $(OBJS) $(EXE) $(EXE).o.i386 $(EXE).o.x86_64 $(EXE).o $(OSX_OBJS)
+	-rm -f $(OBJS) $(EXE) $(EXE).o.i386 $(EXE).o.x86_64 $(EXE).o $(OSX_OBJS) ProcessedInfo.plist ProcessedInfo-Safe.plist
 
 
 #
@@ -87,9 +94,79 @@ clean:
 main-cocoa.o : main-cocoa.m
 	@printf "%10s %-20s (objective-c)\n" CC $<
 	@$(CC) $(CFLAGS) $(OBJ_CFLAGS) -c -o $@ $<
+%.o : cocoa/%.m
+	@printf "%10s %-20s (objective-c)\n" CC $<
+	@$(CC) $(CFLAGS) $(OBJ_CFLAGS) -c -o $@ $<
 %.o : %.c
 	@printf "%10s %-20s\n" CC $<
 	@$(CC) $(JUST_C) $(CFLAGS) -c -o $@ $<
+
+
+
+##
+# Info.plist Processing
+#
+# The Info.plist is an important file that OS X uses to determine a lot of stuff
+# about the app. In order to be friendly, variant maintainers MUST change the
+# values for these three variables: BUNDLE_IDENTIFIER, BUNDLE_SIGNATURE, and
+# SAVE_FILE_EXTENSION. These will tell the system that variant builds are not
+# the vanilla Angband app and will make it so that players can double-click save
+# game files and open have them be opened by the proper app.
+##
+
+# This is the main ID for the app on the system. It should be an all-lower-case,
+# reverse-DNS-style ID, preferably for a domain that you control. If this is a
+# variant, and you don't have or want to use another domain, use the org.rephial
+# domain, but do something like this: org.rephial.variant.<variant name>. This
+# should keep the namespace clean.
+BUNDLE_IDENTIFIER = org.rephial.angband
+
+# The save file extension is an extension that the system will associate with
+# the app. Angband doesn't use this by default, but this can help the system
+# associate the file with the appropriate app. For example, if you download a
+# save game from somewhere, it'll likely appear as an unknown file. You can then
+# append the save file extension to the file name and OS X should then be able
+# to figure out that it's an Angband (or variant) file.
+SAVE_FILE_EXTENSION = angband
+
+# The bundle signature is an old-style four char code used to associate stuff to
+# the app. For safety, this should be composed of only 7-bit ASCII characters.
+BUNDLE_SIGNATURE = A271
+
+# The name of the .icns file that should be used as the app icon. This file
+# needs to be copied to the app bundle in the appropriate location. Do not use
+# a path nor a file extension for this value.
+BUNDLE_ICON_FILE = Angband_Icons
+
+# Build version should be the build number, whereas the short version is the
+# external release version ("4.0.0"). This is currently a bit mangled because
+# of the the way VERSION is set above, but it's not critical.
+BUNDLE_BUILD_VERSION = $(BUNDLE_VERSION)
+BUNDLE_SHORT_VERSION = $(VERSION)
+
+# A few other things we need to set, but shouldn't really need to be changed
+# unless you know what you're doing.
+BUNDLE_DEPLOYMENT_TARGET = $(OSX_MINIMUM_VERSION)
+BUNDLE_NIB_NAME = MainMenu
+
+ProcessedInfo.plist : cocoa/Angband-Info.plist
+	sed -e 's/\$$BUNDLE_SHORT_VERSION\$$/$(BUNDLE_SHORT_VERSION)/' \
+		-e 's/\$$BUNDLE_COPYRIGHT\$$/$(COPYRIGHT)/' \
+		-e 's/\$$BUNDLE_NAME\$$/$(NAME)/' \
+		-e 's/\$$BUNDLE_EXECUTABLE\$$/$(EXE)/' \
+		-e 's/\$$BUNDLE_IDENTIFIER\$$/$(BUNDLE_IDENTIFIER)/' \
+		-e 's/\$$BUNDLE_BUILD_VERSION\$$/$(BUNDLE_BUILD_VERSION)/' \
+		-e 's/\$$BUNDLE_DEPLOYMENT_TARGET\$$/$(BUNDLE_DEPLOYMENT_TARGET)/' \
+		-e 's/\$$BUNDLE_ICON_FILE\$$/$(BUNDLE_ICON_FILE)/' \
+		-e 's/\$$BUNDLE_NIB_NAME\$$/$(BUNDLE_NIB_NAME)/' \
+		-e 's/\$$BUNDLE_SIGNATURE\$$/$(BUNDLE_SIGNATURE)/' \
+		-e 's/\$$SAVE_FILE_EXTENSION\$$/$(SAVE_FILE_EXTENSION)/' \
+		cocoa/Angband-Info.plist > ProcessedInfo.plist
+
+# This should work well enough for the purpose: dev and testing builds.
+ProcessedInfo-Safe.plist : ProcessedInfo.plist
+	sed -e 's/$(BUNDLE_IDENTIFIER)/$(BUNDLE_IDENTIFIER).$(VERSION)/' \
+		ProcessedInfo.plist > ProcessedInfo-Safe.plist
 
 
 #
@@ -128,13 +205,13 @@ LIBFILES = \
   ../lib/help/*.hlp \
   ../lib/customize/*.prf \
 
-install: $(EXE) $(ICONFILES) $(PLIST) $(LIBFILES)
+install: $(EXE) $(ICONFILES) $(LIBFILES) ProcessedInfo.plist
 	@echo making directories...
 	@mkdir -p $(APPBNDL)
 	@mkdir -p $(APPCONT)
 	@mkdir -p $(APPBIN)
 	@mkdir -p $(APPRES)
-	@mkdir -p $(APPRES)/English.lproj/MainMenu.nib 
+	@mkdir -p $(APPRES)/$(BUNDLE_NIB_NAME).nib
 	@mkdir -p $(APPRES)/lib/gamedata
 	@mkdir -p $(APPRES)/lib/screens
 	@mkdir -p $(APPRES)/lib/help
@@ -158,15 +235,9 @@ install: $(EXE) $(ICONFILES) $(PLIST) $(LIBFILES)
 
 	install -m 755 $(EXE) $(APPBIN)
 	install -m 644 $(ICONFILES) $(APPRES)
-	cp cocoa/English.lproj/MainMenu.nib/*ib $(APPRES)/English.lproj/MainMenu.nib
+	cp cocoa/$(BUNDLE_NIB_NAME).nib/*ib $(APPRES)/$(BUNDLE_NIB_NAME).nib
 	cp cocoa/CommandMenu.plist $(APPRES)/CommandMenu.plist
-	sed -e 's/\$$VERSION\$$/$(VERSION)/' \
-		-e 's/\$$COPYRIGHT\$$/$(COPYRIGHT)/' \
-		-e 's/\$$NAME\$$/$(NAME)/' \
-		-e 's/\$$EXECUTABLE\$$/$(EXE)/' \
-		-e 's/\$$BUNDLE_VERSION\$$/$(BUNDLE_VERSION)/' \
-		-e 's/\$$BUNDLE_IDENTIFIER\$$/$(BUNDLE_IDENTIFIER)/' \
-		$(PLIST) > $(APPCONT)/Info.plist
+	cp ProcessedInfo.plist $(APPCONT)/Info.plist
 
 	SetFile -a B $(APPBNDL)
 
@@ -177,15 +248,9 @@ vars:
 	@echo BASEOBJS = $(BASEOBJS)
 
 # build a version that has separate prefs (different bundle ID) and directories (setting SAFE_DIRECTORY preprocessor flag)
-safe-install:
+safe-install : ProcessedInfo-Safe.plist
 	$(MAKE) -f Makefile.osx install CFLAGS="-DSAFE_DIRECTORY $(CFLAGS)"
-	sed -e 's/\$$VERSION\$$/$(VERSION)/' \
-		-e 's/\$$COPYRIGHT\$$/$(COPYRIGHT)/' \
-		-e 's/\$$NAME\$$/$(NAME)/' \
-		-e 's/\$$EXECUTABLE\$$/$(EXE)/' \
-		-e 's/\$$BUNDLE_VERSION\$$/$(BUNDLE_VERSION)/' \
-		-e 's/\$$BUNDLE_IDENTIFIER\$$/$(BUNDLE_IDENTIFIER).$(VERSION)/' \
-		$(PLIST) > $(APPCONT)/Info.plist
+	cp ProcessedInfo-Safe.plist $(APPCONT)/Info.plist
 
 
 PACKAGE_NAME = $(NAME)-$(VERSION)
