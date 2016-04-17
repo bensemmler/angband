@@ -209,6 +209,53 @@ typedef NS_ENUM(NSUInteger, AngbandTermWindowResizePreserving) {
 }
 
 /**
+ * Find a safe number of rows and columns for given content and tile sizes. This
+ * is a class method since it's a general utility.
+ *
+ * \param tileSize The tile size to use.
+ * \param contentSize The size that the tiles need to fit into.
+ * \param newRows On return, contains the number of rows that will fit.
+ * \param newColumns On return, contains the number of columns that will fit.
+ */
++ (void)safeDimensionsWithTileSize: (NSSize)tileSize contentSize: (NSSize)contentSize newRows: (NSInteger * __nullable)newRows newColumns: (NSInteger * __nullable)newColumns
+{
+	/* Avoid divide-by-zero, just in case. */
+	CGFloat safeHeight = (tileSize.height > 0.0) ? tileSize.height : AngbandFallbackTileHeight;
+	CGFloat safeWidth = (tileSize.width > 0.0) ? tileSize.width : AngbandFallbackTileWidth;
+
+	if (newRows != NULL) {
+		*newRows = floor(contentSize.height / safeHeight);
+	}
+
+	if (newColumns != NULL) {
+		*newColumns = ceil(contentSize.width / safeWidth);
+	}
+}
+
+/**
+ * Set the title to the window title plus the number of rows and columns that
+ * fit in the window. This is a class method since it's a general utility.
+ *
+ * \param window The window's content size will be used to calculate the rows
+ *        and columns, which will then be used to update the title.
+ * \param configuration The configuration being used for \c window.
+ */
++ (void)updateTitleWithTermDimensionsForWindow: (NSWindow * __nullable)window configuration: (AngbandTermConfiguration * __nonnull)configuration
+{
+	if (configuration == nil) {
+		return;
+	}
+
+	NSRect contentRect = [window contentRectForFrameRect: [window frame]];
+	NSInteger newRows = AngbandFallbackTerminalRows;
+	NSInteger newColumns = AngbandFallbackTerminalColumns;
+	[[self class] safeDimensionsWithTileSize: configuration.tileSize contentSize: contentRect.size newRows: &newRows newColumns: &newColumns];
+
+	NSString *newTitle = [NSString stringWithFormat: @"%@ (%ld×%ld)", [configuration windowTitle], newRows, newColumns];
+	[window setTitle: newTitle];
+}
+
+/**
  * Process a new configuration and update the window as needed.
  *
  * \param newConfiguration The desired changes to be made to the window. The
@@ -244,11 +291,9 @@ typedef NS_ENUM(NSUInteger, AngbandTermWindowResizePreserving) {
 			 * behavior, since having to constantly reposition and resize
 			 * windows is likely to annoy the user. */
 
-			/* Avoid divide-by-zero, just in case. */
-			CGFloat safeHeight = (newConfiguration.tileSize.height > 0.0) ? newConfiguration.tileSize.height : AngbandFallbackTileHeight;
-			CGFloat safeWidth = (newConfiguration.tileSize.width > 0.0) ? newConfiguration.tileSize.width : AngbandFallbackTileWidth;
-			NSInteger newRows = floor(self.terminalView.bounds.size.height / safeHeight);
-			NSInteger newColumns = ceil(self.terminalView.bounds.size.width / safeWidth);
+			NSInteger newRows = AngbandFallbackTerminalRows;
+			NSInteger newColumns = AngbandFallbackTerminalColumns;
+			[[self class] safeDimensionsWithTileSize: newConfiguration.tileSize contentSize: self.terminalView.bounds.size newRows: &newRows newColumns: &newColumns];
 			newConfiguration = [newConfiguration configurationByChangingRows: newRows columns: newColumns];
 
 			/* Check the adjusted content rect, since it could still be a size
@@ -322,11 +367,9 @@ typedef NS_ENUM(NSUInteger, AngbandTermWindowResizePreserving) {
  */
 - (void)resizeTerminalWithContentRect: (NSRect)contentRect saveToDefaults: (BOOL)saveToDefaults
 {
-	/* Avoid divide-by-zero, just in case. */
-	CGFloat safeHeight = (self.configuration.tileSize.height > 0.0) ? self.configuration.tileSize.height : AngbandFallbackTileHeight;
-	CGFloat safeWidth = (self.configuration.tileSize.width > 0.0) ? self.configuration.tileSize.width : AngbandFallbackTileWidth;
-	NSInteger newRows = floor(contentRect.size.height / safeHeight);
-	NSInteger newColumns = ceil(contentRect.size.width / safeWidth);
+	NSInteger newRows = AngbandFallbackTerminalRows;
+	NSInteger newColumns = AngbandFallbackTerminalColumns;
+	[[self class] safeDimensionsWithTileSize: self.configuration.tileSize contentSize: contentRect.size newRows: &newRows newColumns: &newColumns];
 
 	AngbandTermConfiguration *newConfiguration = [self.configuration configurationByChangingRows: newRows columns: newColumns];
 	[self updateConfiguration: newConfiguration preserving: AngbandTermWindowResizePreservingWindow saveToDefaults: saveToDefaults];
@@ -681,8 +724,34 @@ typedef NS_ENUM(NSUInteger, AngbandTermWindowResizePreserving) {
 #pragma mark -
 #pragma mark NSWindowDelegate Methods
 
+- (void)windowWillStartLiveResize: (NSNotification *)notification
+{
+	if (self.automaticResizeInProgress) {
+		/* A resize has been triggered programmatically, so we'll ignore it. */
+		return;
+	}
+
+	NSWindow *window = [notification object];
+	[[self class] updateTitleWithTermDimensionsForWindow: window configuration: self.configuration];
+}
+
+- (void)windowDidResize: (NSNotification *)notification
+{
+	if (self.automaticResizeInProgress) {
+		/* A resize has been triggered programmatically, so we'll ignore it. */
+		return;
+	}
+
+	NSWindow *window = [notification object];
+	[[self class] updateTitleWithTermDimensionsForWindow: window configuration: self.configuration];
+}
+
 - (void)windowDidEndLiveResize: (NSNotification *)notification
 {
+	/* Reset the title just in case an automatic resize happened outside of our
+	 * explicitly set flag. */
+	[self setTitle: [self.configuration windowTitle]];
+
 	if (self.automaticResizeInProgress) {
 		/* A resize has been triggered programmatically, and we don't want any
 		 * configuration updates. */
