@@ -94,6 +94,7 @@
 <li>The double-drawing/blitting has been removed. I'm not really sure why it was implemented that way to begin with; it wasn't really necessary.</li>
 <li>General drawing should be faster and more efficient. This is from removing the image drawing (the previous item), drawing only the parts of the view that have changed (as helpfully provided by <code>ui-term</code>), and reducing the number of unnecessary operations.</li>
 <li>Graphics tile drawing seems to be about 5 times faster in the average case for drawing one tile.</li>
+<li>For cases where a glyph will be "invisible", it won't be rendered: currently just space and \0 characters, as well as any tile with the <code>BG_SAME</code> attribute.</li>
 <li>In the main term, a consistent, pixel-rounded grid is enforced. This fixes a drawing thing that drove me nuts: in a given row of tiles, after every few there would be extra space. This was most visible in town when drawing was not done at Retina-scale. It's only done in the main term since the sub terms tend to be prose; the inconsistency helps readability. I've got some ideas of how I can keep the grid but also improve readability in the main term.</li>
 </ul>
       </section>
