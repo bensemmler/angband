@@ -229,9 +229,11 @@ typedef NS_ENUM(NSUInteger, AngbandTermWindowResizePreserving) {
 
 	/* Figure out if this new configuration changes our content size in a way
 	 * that would cause window or terminal size changes. The zero rect shouldn't
-	 * happen, but we catch it to make sure it doesn't mess up resizing. */
+	 * happen, but we catch it to make sure it doesn't mess up resizing. Some
+	 * additional checks could be done for efficiency, but otherwise forcing the
+	 * term resize simplifies all of the different cases that can happen. */
 	NSRect newContentRect = NSRectFromCGRect([newConfiguration preferredContentBounds]);
-	BOOL terminalResizeNeeded = (!NSEqualRects(newContentRect, NSZeroRect) && !NSContainsRect(self.terminalView.bounds, newContentRect));
+	BOOL terminalResizeNeeded = !NSEqualRects(newContentRect, NSZeroRect);
 	BOOL expandWindowToFit = NO;
 
 	if (terminalResizeNeeded) {
@@ -284,10 +286,6 @@ typedef NS_ENUM(NSUInteger, AngbandTermWindowResizePreserving) {
 		[self setFrame: newFrame display: NO animate: YES];
 		self.automaticResizeInProgress = NO;
 	}
-
-
-
-	// !!!: check for some issues in resizing launch term: maybe slightly too small row/column, window size at 18pt
 
 	self.configuration = newConfiguration;
 	[self setContentMinSize: [self.configuration windowMinimumSize]];
