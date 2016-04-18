@@ -48,7 +48,7 @@ static BOOL AngbandApplicationShouldQuitNow = NO;
 u32b AngbandMaskForValidSubwindowFlags(void)
 {
 	int windowFlagBits = sizeof(*(window_flag)) * CHAR_BIT;
-	int maxBits = MIN( PW_MAX_FLAGS, windowFlagBits );
+	int maxBits = MINN(PW_MAX_FLAGS, windowFlagBits);
 	u32b mask = 0;
 
 	for( int i = 0; i < maxBits; i++ )

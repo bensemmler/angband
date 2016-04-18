@@ -26,6 +26,16 @@
 #import "buildid.h" /* For VERSION_STRING */
 #endif
 
+/* Define a new MAX macro, since Angband's and Cocoa's cause ambiguity. */
+#if !defined(MAXX)
+#define MAXX(a, b)	(((a) < (b)) ? (b) : (a))
+#endif
+
+/* Define a new MIN macro, since Angband's and Cocoa's cause ambiguity. */
+#if !defined(MINN)
+#define MINN(a, b)	(((a) > (b)) ? (b) : (a))
+#endif
+
 #pragma mark Compiler Feature Compatibility
 
 #if !__has_feature(objc_instancetype)

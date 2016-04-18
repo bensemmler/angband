@@ -187,38 +187,38 @@ static NSUInteger const AngbandTermConfigurationCommonWindowStyleMask = NSTitled
 		if (configuration.index == 0) {
 			frame.origin.x += 0.0;
 			frame.origin.y += verticalUnit;
-			frame.size.width = ceil(MAX(NSWidth(frame), horizontalUnit * 4.0)) - windowSpacing;
-			frame.size.height = ceil(MAX(NSHeight(frame), verticalUnit * 2.0));
+			frame.size.width = ceil(MAXX(NSWidth(frame), horizontalUnit * 4.0)) - windowSpacing;
+			frame.size.height = ceil(MAXX(NSHeight(frame), verticalUnit * 2.0));
 		}
 		else if (configuration.index == 1) {
 			frame.origin.x += 0.0;
 			frame.origin.y += 0.0;
-			frame.size.width = ceil(MAX(NSWidth(frame), horizontalUnit * 2.0)) - windowSpacing;
-			frame.size.height = ceil(MAX(NSHeight(frame), verticalUnit)) - windowSpacing;
+			frame.size.width = ceil(MAXX(NSWidth(frame), horizontalUnit * 2.0)) - windowSpacing;
+			frame.size.height = ceil(MAXX(NSHeight(frame), verticalUnit)) - windowSpacing;
 		}
 		else if (configuration.index == 2) {
 			frame.origin.x += horizontalUnit * 4.0;
 			frame.origin.y += verticalUnit * 2.0;
-			frame.size.width = ceil(MAX(NSWidth(frame), horizontalUnit));
-			frame.size.height = ceil(MAX(NSHeight(frame), verticalUnit));
+			frame.size.width = ceil(MAXX(NSWidth(frame), horizontalUnit));
+			frame.size.height = ceil(MAXX(NSHeight(frame), verticalUnit));
 		}
 		else if (configuration.index == 3) {
 			frame.origin.x += horizontalUnit * 4.0;
 			frame.origin.y += 0.0;
-			frame.size.width = ceil(MAX(NSWidth(frame), horizontalUnit));
-			frame.size.height = ceil(MAX(NSHeight(frame), verticalUnit)) - windowSpacing;
+			frame.size.width = ceil(MAXX(NSWidth(frame), horizontalUnit));
+			frame.size.height = ceil(MAXX(NSHeight(frame), verticalUnit)) - windowSpacing;
 		}
 		else if (configuration.index == 4) {
 			frame.origin.x += horizontalUnit * 4.0;
 			frame.origin.y += verticalUnit;
-			frame.size.width = ceil(MAX(NSWidth(frame), horizontalUnit));
-			frame.size.height = ceil(MAX(NSHeight(frame), verticalUnit)) - windowSpacing;
+			frame.size.width = ceil(MAXX(NSWidth(frame), horizontalUnit));
+			frame.size.height = ceil(MAXX(NSHeight(frame), verticalUnit)) - windowSpacing;
 		}
 		else if (configuration.index == 5) {
 			frame.origin.x += horizontalUnit * 2.0;
 			frame.origin.y += 0.0;
-			frame.size.width = ceil(MAX(NSWidth(frame), horizontalUnit * 2.0)) - windowSpacing;
-			frame.size.height = ceil(MAX(NSHeight(frame), verticalUnit)) - windowSpacing;
+			frame.size.width = ceil(MAXX(NSWidth(frame), horizontalUnit * 2.0)) - windowSpacing;
+			frame.size.height = ceil(MAXX(NSHeight(frame), verticalUnit)) - windowSpacing;
 		}
 		else {
 			/* Cascade remaining windows from the top left of the main term. */
@@ -268,12 +268,12 @@ static NSUInteger const AngbandTermConfigurationCommonWindowStyleMask = NSTitled
 
 	if (self.index == AngbandTermConfigurationMainTermIndex) {
 		/* Make sure the main term doesn't go below its minimum size. */
-		newConfiguration.rows = MAX(rows, AngbandTermConfigurationMainTermMinimumRows);
-		newConfiguration.columns = MAX(columns, AngbandTermConfigurationMainTermMinimumColumns);
+		newConfiguration.rows = MAXX(rows, AngbandTermConfigurationMainTermMinimumRows);
+		newConfiguration.columns = MAXX(columns, AngbandTermConfigurationMainTermMinimumColumns);
 	}
 	else {
-		newConfiguration.rows = MAX(rows, 1);
-		newConfiguration.columns = MAX(columns, 1);
+		newConfiguration.rows = MAXX(rows, 1);
+		newConfiguration.columns = MAXX(columns, 1);
 	}
 
 	return [newConfiguration autorelease];
@@ -325,7 +325,7 @@ static NSUInteger const AngbandTermConfigurationCommonWindowStyleMask = NSTitled
 	}
 
 	/* Clamp the number of terminal defaults to generate to a sensible number. */
-	NSUInteger safeMaxTerminals = MIN(maxTerminals, 16);
+	NSUInteger safeMaxTerminals = MINN(maxTerminals, 16);
 	NSMutableDictionary *defaults = [[NSMutableDictionary alloc] init];
 
 	for (NSUInteger i = 0; i < safeMaxTerminals; i++) {
@@ -552,7 +552,7 @@ static int compare_advances(const void *ap, const void *bp)
 	/* Turn that into unichar. Angband uses ISO Latin 1. */
 	unichar unicharString[GLYPH_COUNT] = {0};
 	NSString *allCharsString = [[NSString alloc] initWithBytes:latinString length:sizeof latinString encoding:NSISOLatin1StringEncoding];
-	[allCharsString getCharacters:unicharString range:NSMakeRange(0, MIN(GLYPH_COUNT, [allCharsString length]))];
+	[allCharsString getCharacters:unicharString range:NSMakeRange(0, MINN(GLYPH_COUNT, [allCharsString length]))];
 	[allCharsString autorelease];
 
 	/* Get glyphs */
