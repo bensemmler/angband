@@ -92,8 +92,12 @@ typedef NS_ENUM(NSUInteger, AngbandTermWindowResizePreserving) {
 		[self setContentMinSize: [self.configuration windowMinimumSize]];
 		[self setTitle: [self.configuration windowTitle]];
 
-		/* default position */ {
-			// !!!: set the default frame using the fancy way
+		/* Use the preferred default placement for the window if it is provided,
+		 * otherwise, just use the standard placement method. */
+		if (!NSEqualRects(self.configuration.defaultWindowFrame, NSZeroRect)) {
+			[self setFrame: self.configuration.defaultWindowFrame display: NO];
+		}
+		else {
 			[self center];
 		}
 

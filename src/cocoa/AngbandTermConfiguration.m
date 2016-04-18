@@ -25,6 +25,7 @@
 @property (nonatomic, assign, readwrite) CGSize tileSize;
 @property (nonatomic, assign, readwrite) NSInteger columns;
 @property (nonatomic, assign, readwrite) NSInteger rows;
+@property (nonatomic, assign, readwrite) NSRect defaultWindowFrame;
 @property (nonatomic, assign, readwrite) NSUInteger index;
 @property (nonatomic, retain, readwrite) NSFont * __nullable font;
 @end
@@ -32,6 +33,7 @@
 @implementation AngbandTermConfiguration
 
 @synthesize columns=_columns;
+@synthesize defaultWindowFrame=_defaultWindowFrame;
 @synthesize font=_font;
 @synthesize index=_index;
 @synthesize preferredAdvance=_preferredAdvance;
@@ -52,6 +54,9 @@ static NSInteger const AngbandTermConfigurationMainTermMinimumRows = 24;
 /** Minimum number of columns required in the main term. */
 static NSInteger const AngbandTermConfigurationMainTermMinimumColumns = 80;
 
+/** Window style mask that should be used for all windows. */
+static NSUInteger const AngbandTermConfigurationCommonWindowStyleMask = NSTitledWindowMask | NSResizableWindowMask | NSMiniaturizableWindowMask;
+
 #pragma mark -
 #pragma mark Instance Setup and Teardown
 
@@ -61,6 +66,7 @@ static NSInteger const AngbandTermConfigurationMainTermMinimumColumns = 80;
 		/* Set fallbacks in case defaults don't get registered. */
 		_font = [[NSFont systemFontOfSize: 13.0] retain];
 		_columns = AngbandFallbackTerminalColumns;
+		_defaultWindowFrame = NSZeroRect;
 		_rows = AngbandFallbackTerminalRows;
 		_tileSize = CGSizeMake(AngbandFallbackTileWidth, AngbandFallbackTileHeight);
 		_index = 0;
@@ -85,6 +91,7 @@ static NSInteger const AngbandTermConfigurationMainTermMinimumColumns = 80;
 {
 	AngbandTermConfiguration *newConfiguration = [[AngbandTermConfiguration alloc] init];
 	newConfiguration.columns = self.columns;
+	newConfiguration.defaultWindowFrame = self.defaultWindowFrame;
 	newConfiguration.font = self.font;
 	newConfiguration.index = self.index;
 	newConfiguration.preferredAdvance = self.preferredAdvance;
@@ -125,6 +132,103 @@ static NSInteger const AngbandTermConfigurationMainTermMinimumColumns = 80;
 + (void)setMainTermIndex: (NSUInteger)mainTermIndex
 {
 	AngbandTermConfigurationMainTermIndex = mainTermIndex;
+}
+
+/**
+ * Prepare a nice arrangement for the term windows if the user has not moved or
+ * resized the windows yet. This is a bit hacky, since this method modifies the
+ * configurations; configurations are intended to be immutable.
+ *
+ * \param configurations The set of configurations to use to arrange the windows
+ *        when they are first created.
+ */
++ (void)setDefaultWindowPlacementForConfigurations: (NSArray * __nonnull)configurations
+{
+	if ([configurations count] == 0) {
+		return;
+	}
+
+	static NSRect containingFrame = {0};
+	static BOOL containingFrameSet = NO;
+
+	if (!containingFrameSet) {
+		/* Get a frame that excludes the dock and the menu bar and inset it to
+		 * center and pad our collection of windows. */
+		containingFrame = [[NSScreen mainScreen] visibleFrame];
+		containingFrame = NSInsetRect(containingFrame, NSWidth(containingFrame) * 0.05, NSHeight(containingFrame) * 0.05);
+		containingFrame = NSIntegralRect(containingFrame);
+		containingFrameSet = YES;
+	}
+
+	/* The presentation we are shooting for looks like this (which is somewhat
+	 * based on the default subwindow flags):
+	 *   +-----+-+   0: main term
+	 *   |0    |2|   1: messages
+	 *   |     +-+   2: inventory
+	 *   |     |4|   3: monster list
+	 *   +--+--+-+   4: object list
+	 *   |1 |5 |3|   5: recall
+	 *   +--+--+-+   6/7: not visible by default, but minimap and sidebar
+	 * This leads to a 5 unit wide by 3 unit high grid to position the windows.
+	 */
+
+	static CGFloat const windowSpacing = 1.0;
+	CGFloat horizontalUnit = floor(NSWidth(containingFrame) / 5.0);
+	CGFloat verticalUnit = floor(NSHeight(containingFrame) / 3.0);
+
+	for (AngbandTermConfiguration *configuration in configurations) {
+		/* Get the window frame to account for UI elements and then move it to
+		 * the origin of the containing frame. From there, the position and size
+		 * are adjusted. */
+		NSRect contentBounds = NSRectFromCGRect([configuration preferredContentBounds]);
+		NSRect frame = [NSWindow frameRectForContentRect: contentBounds styleMask: AngbandTermConfigurationCommonWindowStyleMask];
+		frame.origin = containingFrame.origin;
+
+		if (configuration.index == 0) {
+			frame.origin.x += 0.0;
+			frame.origin.y += verticalUnit;
+			frame.size.width = ceil(MAX(NSWidth(frame), horizontalUnit * 4.0)) - windowSpacing;
+			frame.size.height = ceil(MAX(NSHeight(frame), verticalUnit * 2.0));
+		}
+		else if (configuration.index == 1) {
+			frame.origin.x += 0.0;
+			frame.origin.y += 0.0;
+			frame.size.width = ceil(MAX(NSWidth(frame), horizontalUnit * 2.0)) - windowSpacing;
+			frame.size.height = ceil(MAX(NSHeight(frame), verticalUnit)) - windowSpacing;
+		}
+		else if (configuration.index == 2) {
+			frame.origin.x += horizontalUnit * 4.0;
+			frame.origin.y += verticalUnit * 2.0;
+			frame.size.width = ceil(MAX(NSWidth(frame), horizontalUnit));
+			frame.size.height = ceil(MAX(NSHeight(frame), verticalUnit));
+		}
+		else if (configuration.index == 3) {
+			frame.origin.x += horizontalUnit * 4.0;
+			frame.origin.y += 0.0;
+			frame.size.width = ceil(MAX(NSWidth(frame), horizontalUnit));
+			frame.size.height = ceil(MAX(NSHeight(frame), verticalUnit)) - windowSpacing;
+		}
+		else if (configuration.index == 4) {
+			frame.origin.x += horizontalUnit * 4.0;
+			frame.origin.y += verticalUnit;
+			frame.size.width = ceil(MAX(NSWidth(frame), horizontalUnit));
+			frame.size.height = ceil(MAX(NSHeight(frame), verticalUnit)) - windowSpacing;
+		}
+		else if (configuration.index == 5) {
+			frame.origin.x += horizontalUnit * 2.0;
+			frame.origin.y += 0.0;
+			frame.size.width = ceil(MAX(NSWidth(frame), horizontalUnit * 2.0)) - windowSpacing;
+			frame.size.height = ceil(MAX(NSHeight(frame), verticalUnit)) - windowSpacing;
+		}
+		else {
+			/* Cascade remaining windows from the top left of the main term. */
+			CGFloat offset = (configuration.index - 5) * 30.0;
+			frame.origin.x += offset;
+			frame.origin.y += (verticalUnit * 3.0) - NSHeight(frame) - offset;
+		}
+
+		configuration.defaultWindowFrame = frame;
+	}
 }
 
 /**
@@ -183,7 +287,7 @@ static NSInteger const AngbandTermConfigurationMainTermMinimumColumns = 80;
  */
 - (CGRect)preferredContentBounds
 {
-	return CGRectMake(0.0, 0.0, self.tileSize.width * (CGFloat)self.columns, self.tileSize.height * (CGFloat)self.rows);
+	return CGRectMake(0.0, 0.0, ceil(self.tileSize.width * (CGFloat)self.columns), ceil(self.tileSize.height * (CGFloat)self.rows));
 }
 
 #pragma mark -
@@ -225,38 +329,49 @@ static NSInteger const AngbandTermConfigurationMainTermMinimumColumns = 80;
 	NSMutableDictionary *defaults = [[NSMutableDictionary alloc] init];
 
 	for (NSUInteger i = 0; i < safeMaxTerminals; i++) {
-		/* The following default rows/cols were determined experimentally by first
-		 * finding the ideal window/font size combinations. */
-		int columns, rows;
+		/* The following values were determined experimentally to find a nice
+		 * balance between font, font size, and window size. */
+		NSInteger rows = 24;
+		NSInteger columns = 80;
+		BOOL visible = YES;
+		CGFloat defaultFontSize = [defaultFont pointSize];
+		static CGFloat const smallFontSize = 10.0;
 
 		switch (i) {
 			case 0:
-				columns = 129;
-				rows = 32;
+				columns = 124;
+				rows = 31;
 				break;
 			case 1:
-				columns = 84;
+				columns = 79;
 				rows = 20;
+				defaultFontSize = smallFontSize;
 				break;
 			case 2:
 				columns = 42;
-				rows = 24;
+				rows = 20; /* This will clip the inventory list as of 4.0.4. */
+				defaultFontSize = smallFontSize;
 				break;
 			case 3:
 				columns = 42;
 				rows = 20;
+				defaultFontSize = smallFontSize;
 				break;
 			case 4:
 				columns = 42;
-				rows = 16;
+				rows = 20;
+				defaultFontSize = smallFontSize;
 				break;
 			case 5:
-				columns = 84;
+				columns = 79;
 				rows = 20;
+				defaultFontSize = smallFontSize;
 				break;
 			default:
 				columns = 80;
 				rows = 24;
+				defaultFontSize = smallFontSize;
+				visible = NO;
 				break;
 		}
 
@@ -265,9 +380,9 @@ static NSInteger const AngbandTermConfigurationMainTermMinimumColumns = 80;
 		[standardTerm setValue: [NSNumber numberWithInteger: rows] forKey: AngbandTerminalRowsDefaultsKey];
 		[standardTerm setValue: [NSNumber numberWithInteger: columns] forKey: AngbandTerminalColumnsDefaultsKey];
 		[standardTerm setValue: [defaultFont fontName] forKey: AngbandTerminalFontNameDefaultsKey];
-		[standardTerm setValue: [NSNumber numberWithDouble: [defaultFont pointSize]] forKey: AngbandTerminalFontSizeDefaultsKey];
-		[standardTerm setValue: [NSNumber numberWithBool: YES] forKey: AngbandTerminalVisibleDefaultsKey];
-		[defaults setValue: standardTerm forKey: [NSString stringWithFormat: AngbandTerminalConfigurationDefaultsKeyFormat, (int)i]];
+		[standardTerm setValue: [NSNumber numberWithDouble: defaultFontSize] forKey: AngbandTerminalFontSizeDefaultsKey];
+		[standardTerm setValue: [NSNumber numberWithBool: visible] forKey: AngbandTerminalVisibleDefaultsKey];
+		[defaults setValue: standardTerm forKey: [self defaultsKeyWithIndex: (int)i]];
 		[standardTerm release];
 	}
 
@@ -350,7 +465,7 @@ static NSInteger const AngbandTermConfigurationMainTermMinimumColumns = 80;
  */
 - (NSUInteger)windowStyleMask
 {
-	NSUInteger styleMask = NSTitledWindowMask | NSResizableWindowMask | NSMiniaturizableWindowMask;
+	NSUInteger styleMask = AngbandTermConfigurationCommonWindowStyleMask;
 
 	if (self.index != AngbandTermConfigurationMainTermIndex) {
 		/* Make every window other than the main window closable. */

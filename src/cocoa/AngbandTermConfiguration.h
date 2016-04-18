@@ -35,6 +35,7 @@
 	NSFont *_font;
 	NSInteger _columns;
 	NSInteger _rows;
+	NSRect _defaultWindowFrame;
 	NSUInteger _index;
 	term * (*_termInitializer)(int, int, int);
 }
@@ -45,19 +46,21 @@
 @property (nonatomic, assign, readonly) CGSize tileSize; /**< The width and height of an individual tile in this terminal. */
 @property (nonatomic, assign, readonly) NSInteger columns; /**< The number of columns in this terminal. */
 @property (nonatomic, assign, readonly) NSInteger rows; /**< The number of rows in this terminal. */
+@property (nonatomic, assign, readonly) NSRect defaultWindowFrame; /**< The window frame to use on a clean install for a nice presentation. */
 @property (nonatomic, assign, readonly) NSUInteger index; /**< The index of this terminal in \c angband_terminals[]. */
 @property (nonatomic, retain, readonly) NSFont * __nullable font; /**< The font that is used to draw actual glyphs on screen. */
 
-+ (void)setDefaultTermInitializer: (term * __nullable (* __nullable)(int, int, int))function;
-+ (void)setMainTermIndex: (NSUInteger)mainTermIndex;
 + (NSDictionary * __nullable)defaultsToRegisterWithFont: (NSFont * __nonnull)defaultFont maxTerminals: (NSUInteger)maxTerminals;
 + (instancetype __nonnull)restoredConfigurationFromDefaultsWithIndex: (NSUInteger)index;
-- (instancetype __nonnull)configurationByChangingFont: (NSFont * __nonnull)font;
-- (instancetype __nonnull)configurationByChangingRows: (NSInteger)rows columns: (NSInteger)columns;
++ (void)setDefaultTermInitializer: (term * __nullable (* __nullable)(int, int, int))function;
++ (void)setDefaultWindowPlacementForConfigurations: (NSArray * __nonnull)configurations;
++ (void)setMainTermIndex: (NSUInteger)mainTermIndex;
 - (CGRect)preferredContentBounds;
-- (void)saveToDefaults;
+- (NSSize)windowMinimumSize;
 - (NSString * __nonnull)windowTitle;
 - (NSUInteger)windowStyleMask;
-- (NSSize)windowMinimumSize;
 - (NSWindowCollectionBehavior)windowCollectionBehaviorWithBehavior: (NSWindowCollectionBehavior)existingBehavior;
+- (instancetype __nonnull)configurationByChangingFont: (NSFont * __nonnull)font;
+- (instancetype __nonnull)configurationByChangingRows: (NSInteger)rows columns: (NSInteger)columns;
+- (void)saveToDefaults;
 @end

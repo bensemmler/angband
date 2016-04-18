@@ -163,10 +163,19 @@ void AngbandSetCurrentSaveFilePath(NSString * __nonnull path)
  */
 - (void)prepareTermWindows
 {
-	NSMutableArray *windows = [[NSMutableArray alloc] init];
+	NSMutableArray *configurations = [[NSMutableArray alloc] init];
 
 	for (NSInteger i = 0; i < ANGBAND_TERM_MAX; i++) {
 		AngbandTermConfiguration *configuration = [AngbandTermConfiguration restoredConfigurationFromDefaultsWithIndex: i];
+		[configurations addObject: configuration];
+	}
+
+	[AngbandTermConfiguration setDefaultWindowPlacementForConfigurations: configurations];
+
+	NSMutableArray *windows = [[NSMutableArray alloc] init];
+
+	for (NSInteger i = 0; i < ANGBAND_TERM_MAX; i++) {
+		AngbandTermConfiguration *configuration = [configurations objectAtIndex: i];
 		AngbandDefaultTermView *termView = [[AngbandDefaultTermView alloc] initWithFrame: NSZeroRect];
 		AngbandTermWindow *window = [[AngbandTermWindow alloc] initWithConfiguration: configuration termView: termView];
 
@@ -180,6 +189,7 @@ void AngbandSetCurrentSaveFilePath(NSString * __nonnull path)
 
 	self.windows = [NSArray arrayWithArray: windows];
 	[windows release];
+	[configurations release];
 
 	[self.windows makeObjectsPerformSelector: @selector(orderFront:) withObject: self];
 }
