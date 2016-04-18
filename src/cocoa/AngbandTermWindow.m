@@ -220,7 +220,7 @@ typedef NS_ENUM(NSUInteger, AngbandTermWindowResizePreserving) {
  * \param newRows On return, contains the number of rows that will fit.
  * \param newColumns On return, contains the number of columns that will fit.
  */
-+ (void)safeDimensionsWithTileSize: (NSSize)tileSize contentSize: (NSSize)contentSize newRows: (NSInteger * __nullable)newRows newColumns: (NSInteger * __nullable)newColumns
++ (void)safeDimensionsWithTileSize: (CGSize)tileSize contentSize: (NSSize)contentSize newRows: (NSInteger * __nullable)newRows newColumns: (NSInteger * __nullable)newColumns
 {
 	/* Avoid divide-by-zero, just in case. */
 	CGFloat safeHeight = (tileSize.height > 0.0) ? tileSize.height : AngbandFallbackTileHeight;
@@ -254,7 +254,7 @@ typedef NS_ENUM(NSUInteger, AngbandTermWindowResizePreserving) {
 	NSInteger newColumns = AngbandFallbackTerminalColumns;
 	[[self class] safeDimensionsWithTileSize: configuration.tileSize contentSize: contentRect.size newRows: &newRows newColumns: &newColumns];
 
-	NSString *newTitle = [NSString stringWithFormat: @"%@ (%ld×%ld)", [configuration windowTitle], newRows, newColumns];
+	NSString *newTitle = [NSString stringWithFormat: @"%@ (%ld×%ld)", [configuration windowTitle], (long)newRows, (long)newColumns];
 	[window setTitle: newTitle];
 }
 

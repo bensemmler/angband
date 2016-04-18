@@ -148,7 +148,8 @@ static NSUInteger const AngbandTermConfigurationCommonWindowStyleMask = NSTitled
 		return;
 	}
 
-	static NSRect containingFrame = {0};
+	/* NSZeroRect isn't available at build time. */
+	static NSRect containingFrame = {{0.0, 0.0}, {0.0, 0.0}};
 	static BOOL containingFrameSet = NO;
 
 	if (!containingFrameSet) {
