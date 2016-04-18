@@ -29,15 +29,13 @@
 	AngbandTermConfiguration *_configuration;
 	AngbandTerminalEntity *_terminalEntities;
 	BOOL _automaticResizeInProgress;
-	BOOL _hasSubwindowFlags;
-	BOOL _windowVisibilityChecked;
 	CGRect _cursorRect;
 	NSView <AngbandTermViewDrawing> *_terminalView;
 	term *_terminal;
+	u32b _subwindowFlags;
 }
 
-@property (nonatomic, assign) BOOL hasSubwindowFlags;
-@property (nonatomic, assign) BOOL windowVisibilityChecked;
+@property (nonatomic, assign) u32b subwindowFlags;
 
 - (BOOL)useImageTilesetAtPath: (NSString * __nonnull)path tileWidth: (CGFloat)tileWidth tileHeight: (CGFloat)tileHeight;
 - (BOOL)windowVisibleUsingDefaults;

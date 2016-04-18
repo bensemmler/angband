@@ -40,21 +40,19 @@ extern void AngbandSetCurrentSaveFilePath(NSString * __nonnull path);
 static BOOL AngbandApplicationShouldQuitNow = NO;
 
 /**
- * Generate a mask for the subwindow flags. The mask is just a safety check to
- * make sure that our windows show and hide as expected.  This function allows
- * for future changes to the set of flags without needed to update it here
- * (unless the underlying types change).
+ * Generate a mask for the available subwindow flags. Subwindow availability is
+ * determined by the descriptions for the subwindows in \c window_flag_desc.
+ *
+ * \return A mask corresponding to what subwindow flags are actually available.
  */
-u32b AngbandMaskForValidSubwindowFlags(void)
+u32b AngbandWindowSubwindowFlagsMask(void)
 {
-	int windowFlagBits = sizeof(*(window_flag)) * CHAR_BIT;
+	int windowFlagBits = sizeof(*window_flag) * CHAR_BIT;
 	int maxBits = MINN(PW_MAX_FLAGS, windowFlagBits);
 	u32b mask = 0;
 
-	for( int i = 0; i < maxBits; i++ )
-	{
-		if( window_flag_desc[i] != NULL )
-		{
+	for (int i = 0; i < maxBits; i++) {
+		if (window_flag_desc[i] != NULL) {
 			mask |= (1 << i);
 		}
 	}
@@ -63,23 +61,24 @@ u32b AngbandMaskForValidSubwindowFlags(void)
 }
 
 /**
- * Check for changes in the subwindow flags and update window visibility.
- * This seems to be called for every user event, so we don't
- * want to do any unnecessary hiding or showing of windows.
+ * Update subwindow flags for all windows. Depending on the changes, windows may
+ * automatically open and close, regardless of user preference. Avoid calling
+ * this function frequently, if possible.
+ *
+ * \param forceVisibilityOnFlagsEnabled If YES, any subwindows that are enabled
+ *        will be made visible, regardless of user preference.
  */
-static void AngbandUpdateWindowVisibility(void)
+static void AngbandWindowUpdateVisibility(BOOL forceVisibilityOnFlagsEnabled)
 {
-	/* Because this function is called frequently, we'll make the mask static.
-	 * It doesn't change between calls, as the flags themselves are hardcoded */
-	static u32b validWindowFlagsMask = 0;
+	/* The subwindow flags is determined at build time, so we only need to set
+	 * this mask once. This also assumes that there is at least one subwindow
+	 * option available. */
+	static u32b subwindowFlagsMask = 0;
 
-	if (validWindowFlagsMask == 0) {
-		validWindowFlagsMask = AngbandMaskForValidSubwindowFlags();
+	if (subwindowFlagsMask == 0) {
+		subwindowFlagsMask = AngbandWindowSubwindowFlagsMask();
 	}
 
-	/* Loop through all of the subwindows and see if there is a change in the
-	 * flags. If so, show or hide the corresponding window. We don't care about
-	 * the flags themselves; we just want to know if any are set. */
 	for (int i = 1; i < ANGBAND_TERM_MAX; i++) {
 		if (angband_term[i] == NULL) {
 			continue;
@@ -91,39 +90,48 @@ static void AngbandUpdateWindowVisibility(void)
 			continue;
 		}
 
-		/* This horrible mess of flags is so that we can try to maintain some
-		 * user visibility preference. This should allow the user a window and
-		 * have it stay closed between application launches. However, this
-		 * means that when a subwindow is turned on, it will no longer appear
-		 * automatically. Angband has no concept of user control over window
-		 * visibility, other than the subwindow flags. */
-		if (window.windowVisibilityChecked) {
-			if ([window windowVisibleUsingDefaults]) {
-				[window orderFront: nil];
-				window.windowVisibilityChecked = YES;
-			}
-			else {
-				[window close];
-				window.windowVisibilityChecked = NO;
-			}
-		}
-		else {
-			BOOL termHasSubwindowFlags = ((window_flag[i] & validWindowFlagsMask) > 0);
+		u32b newFlags = window_flag[i] & subwindowFlagsMask;
 
-			if (window.hasSubwindowFlags && !termHasSubwindowFlags) {
-				[window close];
-				window.hasSubwindowFlags = NO;
-				[window saveWindowVisibleToDefaults: NO];
-			}
-			else if (!window.hasSubwindowFlags && termHasSubwindowFlags) {
+		if (window.subwindowFlags == newFlags) {
+			/* Nothing to do, continuing for efficiency. */
+			continue;
+		}
+
+		BOOL shouldShowWindowWithUpdatedFlags = NO;
+
+		if (forceVisibilityOnFlagsEnabled && newFlags > 0 && window.subwindowFlags == 0) {
+			/* In the case of a subwindow that was disabled and is now enabled,
+			 * we want to make it visible, regardless of user preference, so
+			 * that it's obvious that something changed. It's also likely that
+			 * if the user enabled a subwindow, they actually do want it. */
+			shouldShowWindowWithUpdatedFlags = YES;
+		}
+
+		window.subwindowFlags = newFlags;
+
+		BOOL windowCanBeVisible = (window.subwindowFlags > 0);
+		BOOL userWantsWindowVisible = [window windowVisibleUsingDefaults];
+
+		if (windowCanBeVisible && userWantsWindowVisible) {
+			[window orderFront: nil];
+		}
+		else if (windowCanBeVisible && !userWantsWindowVisible) {
+			if (shouldShowWindowWithUpdatedFlags) {
 				[window orderFront: nil];
-				window.hasSubwindowFlags = YES;
 				[window saveWindowVisibleToDefaults: YES];
 			}
+			else {
+				[window orderOut: nil];
+			}
+		}
+		else if (!windowCanBeVisible) {
+			/* The subwindow is disabled and thus cannot be visible, regardless
+			 * of the user's preference. */
+			[window orderOut: nil];
 		}
 	}
-	
-	/* Make the main window key so that user events go to the right spot */
+
+	/* Ensure that the main window is visible and key to get events. */
 	AngbandTermWindow *mainWindow = (AngbandTermWindow *)angband_term[0]->data;
 	[mainWindow makeKeyAndOrderFront: nil];
 }
@@ -686,18 +694,16 @@ static errr Term_xtra_cocoa(int n, int v)
 		/* Process random events */
         case TERM_XTRA_BORED:
         {
-            /* Show or hide cocoa windows based on the subwindow flags set by
-			 * the user */
-
-
-            /* Process an event */
-
-			if ([angbandContext isKindOfClass: [AngbandTermWindow class]]) {
-				AngbandUpdateWindowVisibility();
+			/* This is a hack to allow us to update window visibility as soon as
+			 * possible after the flags change; it's a bit better than waiting
+			 * to get back to the game to see changes. Once we're in the game,
+			 * the flags shouldn't change, so we don't need to constantly check
+			 * and update window visibility, improving performance. */
+			if (!AngbandDisplayingMainInterface()) {
+				AngbandWindowUpdateVisibility(YES);
 			}
 
-			/* Success */
-            break;
+			break;
         }
             
 		/* Process pending events */
@@ -747,7 +753,16 @@ static errr Term_xtra_cocoa(int n, int v)
 		/* React to changes */
         case TERM_XTRA_REACT:
         {
-            /* React to changes */
+			/* XTRA_REACT is the preferred time to update window visibility. It
+			 * is sent whenever we enter the game (from start, menus, etc) along
+			 * with a few other occasions. We do not want to force visibility on
+			 * flags enabled, since the subwindow flags are first set when the
+			 * game has started. Each of our window objects will have its flags
+			 * set to zero, and thus forcing visibility will make every enabled
+			 * subwindow visible regardless of user preference.
+			 */
+			AngbandWindowUpdateVisibility(NO);
+
             return (Term_xtra_cocoa_react());
         }
             

@@ -50,11 +50,10 @@ typedef NS_ENUM(NSUInteger, AngbandTermWindowResizePreserving) {
 @synthesize automaticResizeInProgress=_automaticResizeInProgress;
 @synthesize configuration=_configuration;
 @synthesize cursorRect=_cursorRect;
-@synthesize hasSubwindowFlags=_hasSubwindowFlags;
+@synthesize subwindowFlags=_subwindowFlags;
 @synthesize terminal=_terminal;
 @synthesize terminalEntities=_terminalEntities;
 @synthesize terminalView=_terminalView;
-@synthesize windowVisibilityChecked=_windowVisibilityChecked;
 
 #pragma mark -
 #pragma mark Instance Setup and Teardown
@@ -76,7 +75,7 @@ typedef NS_ENUM(NSUInteger, AngbandTermWindowResizePreserving) {
 
 	if ((self = [super initWithContentRect: contentRect styleMask: styleMask backing: NSBackingStoreBuffered defer: YES])) {
 		self.configuration = configuration;
-		_windowVisibilityChecked = NO;
+		_subwindowFlags = 0;
 		_cursorRect = CGRectZero;
 		_terminalEntities = NULL;
 		[self allocateEntityBuffer];
@@ -808,9 +807,15 @@ typedef NS_ENUM(NSUInteger, AngbandTermWindowResizePreserving) {
 	[item setState: NSOffState];
 }
 
-- (void)windowWillClose: (NSNotification *)notification
+- (BOOL)windowShouldClose: (id)sender
 {
+	/* When windowShouldClose: is called, it is in response to a user closing
+	 * the window, as opposed to the system or the app closing the window. We
+	 * interpret this as a user preference for window visibility. This cannot
+	 * be done in windowWillClose: because that is called in all cases when the
+	 * window is closed. */
 	[self saveWindowVisibleToDefaults: NO];
+	return YES;
 }
 
 @end

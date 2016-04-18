@@ -160,6 +160,8 @@ void AngbandSetCurrentSaveFilePath(NSString * __nonnull path)
 
 /**
  * Create the actual terms that will be used to create windows to play the game.
+ * The windows will be made visible once the game starts, since visibility is
+ * dependent on the game's subwindow flags in addition to user preference.
  */
 - (void)prepareTermWindows
 {
@@ -190,8 +192,6 @@ void AngbandSetCurrentSaveFilePath(NSString * __nonnull path)
 	self.windows = [NSArray arrayWithArray: windows];
 	[windows release];
 	[configurations release];
-
-	[self.windows makeObjectsPerformSelector: @selector(orderFront:) withObject: self];
 }
 
 /**
