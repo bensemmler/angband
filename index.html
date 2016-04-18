@@ -28,7 +28,7 @@
         </ul>
       </header>
       <section>
-        <p>(16 April 2016)</p>
+        <p>16 April 2016 (dates next to items indicate when that item was updated in this document, not necessarily in the repo)</p>
 
 <h2>
 <a id="caveats" class="anchor" href="#caveats" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Caveats</h2>
@@ -43,10 +43,12 @@
 <a id="known-issues" class="anchor" href="#known-issues" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Known Issues</h2>
 
 <ul>
-<li>Window resizing is completely broken, as is full screen. These aren't hard for me to fix and will tie into some other stuff I'll be adding.</li>
+<li>
+<del>Window resizing is completely broken, as is full screen. These aren't hard for me to fix and will tie into some other stuff I'll be adding.</del> (fixed, 17 April 2016)</li>
 <li>The automatic window visibility stuff (when changing sub term flags) might be a bit wonky.</li>
 <li>Some fonts at certain sizes can leave pixels behind when redrawing (Menlo 13, the default font, shows this). This will get fixed when I clean up character drawing a bit more.</li>
-<li>Default window positions on a new install are all over the place. This will be restored as well.</li>
+<li>
+<del>Default window positions on a new install are all over the place. This will be restored as well.</del> (fixed, 17 April 2016)</li>
 </ul>
 
 <h2>
@@ -82,6 +84,8 @@
 <li>Modern file association has been implemented properly so that files should open in the correct app. There may be some weirdness due to file metadata being incorrect, but in the long term, this should resolve some issues. Double clicking a save game should properly start that game (if Angband is not launched or if it is on the splash screen).</li>
 <li>The way the game interacts with the Cocoa event loop has been cleaned up significantly. While this shouldn't be noticed by players, it makes the app work more nicely with the system.</li>
 <li>Preparations for localization of the app are being made. This will at least make the chrome look more natural on a non-English speaker's machine.</li>
+<li>When using the mouse to play, events are triggered only when the mouse button is released. This allows cancelling of the click by various "natural" methods. The previous implementation triggered mouse events on mouse down. (17 April 2016)</li>
+<li>Term dimensions are shown in the window title during window resizing. (17 April 2016)</li>
 </ul>
 
 <h3>
@@ -94,8 +98,8 @@
 <li>The double-drawing/blitting has been removed. I'm not really sure why it was implemented that way to begin with; it wasn't really necessary.</li>
 <li>General drawing should be faster and more efficient. This is from removing the image drawing (the previous item), drawing only the parts of the view that have changed (as helpfully provided by <code>ui-term</code>), and reducing the number of unnecessary operations.</li>
 <li>Graphics tile drawing seems to be about 5 times faster in the average case for drawing one tile.</li>
-<li>For cases where a glyph will be "invisible", it won't be rendered: currently just space and \0 characters, as well as any tile with the <code>BG_SAME</code> attribute.</li>
 <li>In the main term, a consistent, pixel-rounded grid is enforced. This fixes a drawing thing that drove me nuts: in a given row of tiles, after every few there would be extra space. This was most visible in town when drawing was not done at Retina-scale. It's only done in the main term since the sub terms tend to be prose; the inconsistency helps readability. I've got some ideas of how I can keep the grid but also improve readability in the main term.</li>
+<li>For cases where a glyph will be "invisible", it won't be rendered: currently just space and \0 characters, as well as any tile with the <code>BG_SAME</code> attribute. (17 April 2016)</li>
 </ul>
       </section>
       <footer>
